@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nunster · Spielleiter</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Crimson+Pro:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --red: #9b1a1a;
+  --red2: #c0392b;
+  --gold: #c9a84c;
+  --black: #080808;
+  --text: #f0ede8;
+  --muted: #666;
+  --surface: #141414;
+  --border: #222;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--black);
+  color: var(--text);
+  font-family: 'Crimson Pro', Georgia, serif;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+/* ── SCREENS ── */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.4s, transform 0.4s;
+}
+.screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.96);
+}
+
+/* ════════════════════════════════
+   LOAD SCREEN
+════════════════════════════════ */
+#screen-load {
+  background: var(--black);
+  padding: 32px 24px;
+  gap: 0;
+}
+
+.load-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(56px, 15vw, 88px);
+  letter-spacing: 0.08em;
+  color: var(--text);
+  line-height: 1;
+  text-align: center;
+}
+.load-logo em {
+  color: var(--red2);
+  font-style: normal;
+}
+
+.load-sub {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 6px;
+  margin-bottom: 48px;
+  text-align: center;
+}
+
+.drop-zone {
+  width: 100%;
+  max-width: 420px;
+  border: 1.5px dashed #2a2a2a;
+  border-radius: 12px;
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.2s, background 0.2s;
+}
+.drop-zone.drag-over { border-color: var(--red); background: rgba(155,26,26,0.07); }
+.drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.drop-icon { font-size: 32px; margin-bottom: 10px; display: block; }
+.drop-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.drop-sub   { font-size: 0.8rem; color: var(--muted); }
+
+.load-hint {
+  margin-top: 20px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.7;
+  max-width: 340px;
+}
+
+/* ════════════════════════════════
+   PLAY SCREEN – hidden state
+════════════════════════════════ */
+#screen-play {
+  background: var(--black);
+  padding: 0;
+  justify-content: space-between;
+}
+
+/* Top bar */
+.play-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.play-logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 0.1em;
+  color: var(--text);
+}
+.play-logo em { color: var(--red2); font-style: normal; }
+
+.play-counter {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.btn-menu {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 5px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.btn-menu:hover { color: var(--text); border-color: #444; }
+
+/* Center card area */
+.card-area {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  perspective: 1000px;
+}
+
+/* The card itself */
+.card-3d {
+  width: min(340px, 90vw);
+  height: min(340px, 90vw);
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(.4,0,.2,1);
+  cursor: pointer;
+}
+.card-3d.flipped { transform: rotateY(180deg); }
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* FRONT: dark mystery */
+.card-front-face {
+  background: #0d0d0d;
+  border: 1px solid #1a1a1a;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  position: relative;
+}
+
+.card-front-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 40%, rgba(155,26,26,0.2) 0%, transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(201,168,76,0.08) 0%, transparent 50%);
+  border-radius: 16px;
+}
+
+.card-front-face .nun-img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(155,26,26,0.5);
+  box-shadow: 0 0 30px rgba(155,26,26,0.3);
+  position: relative;
+  z-index: 1;
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(155,26,26,0.3); }
+  50%       { box-shadow: 0 0 40px rgba(155,26,26,0.6), 0 0 60px rgba(155,26,26,0.2); }
+}
+
+.playing-label {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  color: var(--muted);
+  position: relative;
+  z-index: 1;
+}
+
+.tap-hint {
+  position: absolute;
+  bottom: 20px;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: rgba(255,255,255,0.2);
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+/* BACK: reveal */
+.card-back-face {
+  transform: rotateY(180deg);
+  background: #fff;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.card-stripe {
+  background: var(--red);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.card-stripe img {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255,255,255,0.25);
+}
+.card-stripe-label {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.15em;
+  color: #fff;
+}
+
+.card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px 16px;
+  gap: 6px;
+  text-align: center;
+}
+
+.reveal-artist {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.reveal-year {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(56px, 16vw, 80px);
+  color: var(--red);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.reveal-divider {
+  width: 36px;
+  height: 2px;
+  background: var(--red);
+  margin: 2px auto;
+}
+
+.reveal-title {
+  font-size: 13px;
+  font-style: italic;
+  color: #666;
+  line-height: 1.3;
+  max-width: 100%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Bottom controls */
+.play-controls {
+  width: 100%;
+  padding: 16px 20px 24px;
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.btn-deezer {
+  flex: 1;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 18px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.btn-deezer:active { transform: scale(0.97); background: var(--red2); }
+
+.btn-next {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 18px 20px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-next:active { transform: scale(0.97); }
+.btn-next:hover { background: #1a1a1a; }
+
+/* ── WAVEFORM ANIMATION ── */
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  position: relative;
+  z-index: 1;
+}
+.wave-bar {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--red2);
+  animation: wave 1.2s ease-in-out infinite;
+}
+.wave-bar:nth-child(1) { animation-delay: 0s;    height: 40%; }
+.wave-bar:nth-child(2) { animation-delay: 0.1s;  height: 70%; }
+.wave-bar:nth-child(3) { animation-delay: 0.2s;  height: 100%;}
+.wave-bar:nth-child(4) { animation-delay: 0.3s;  height: 60%; }
+.wave-bar:nth-child(5) { animation-delay: 0.15s; height: 80%; }
+.wave-bar:nth-child(6) { animation-delay: 0.25s; height: 45%; }
+.wave-bar:nth-child(7) { animation-delay: 0.05s; height: 90%; }
+
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.4); }
+  50%       { transform: scaleY(1); }
+}
+
+/* ── SONG GONE notice ── */
+.all-done {
+  text-align: center;
+  padding: 40px 24px;
+}
+.all-done h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 36px;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.all-done p { color: var(--muted); font-size: 0.9rem; }
+
+/* ── STATS PILL ── */
+.stats-pill {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  z-index: 10;
+}
+</style>
+</head>
+<body>
+
+<!-- ════════ LOAD SCREEN ════════ -->
+<div id="screen-load" class="screen">
+  <div class="load-logo">NUN<em>STER</em></div>
+  <div class="load-sub">Spielleiter · Deezer</div>
+
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" id="file-input" accept=".csv">
+    <span class="drop-icon">🎵</span>
+    <div class="drop-title">Nunster-CSV laden</div>
+    <div class="drop-sub">Klicken oder Datei hier ablegen</div>
+  </div>
+
+  <div class="load-hint">
+    Exportify (Spotify) oder Nunster-eigenes Format<br>
+    Songs werden zufällig gezogen · bereits gespielte werden übersprungen
+  </div>
+</div>
+
+<!-- ════════ PLAY SCREEN ════════ -->
+<div id="screen-play" class="screen hidden">
+  <div class="play-header">
+    <div class="play-logo">NUN<em>STER</em></div>
+    <div class="play-counter" id="play-counter"></div>
+    <button class="btn-menu" onclick="goHome()">↩ Neu</button>
+  </div>
+
+  <div class="card-area">
+    <div class="card-3d" id="card-3d" onclick="flipCard()">
+
+      <!-- FRONT -->
+      <div class="card-face card-front-face" id="card-front">
+        <img class="nun-img" id="nun-img" src="" alt="">
+        <div class="waveform" id="waveform" style="display:none">
+          <div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div><div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+        <div class="playing-label" id="playing-label">TIPPEN ZUM STARTEN</div>
+        <div class="tap-hint">Karte tippen zum Aufdecken</div>
+      </div>
+
+      <!-- BACK -->
+      <div class="card-face card-back-face">
+        <div class="card-stripe">
+          <img id="stripe-img" src="" alt="">
+          <span class="card-stripe-label">Nunster</span>
+        </div>
+        <div class="card-body">
+          <div class="reveal-artist" id="reveal-artist"></div>
+          <div class="reveal-year"   id="reveal-year"></div>
+          <div class="reveal-divider"></div>
+          <div class="reveal-title"  id="reveal-title"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="play-controls">
+    <button class="btn-deezer" id="btn-deezer" onclick="openDeezer()">
+      ▶ IN DEEZER ÖFFNEN
+    </button>
+    <button class="btn-next" onclick="nextSong()">›</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────
+let songs    = [];
+let played   = new Set();
+let current  = null;
+let revealed = false;
+let logoB64  = '';
+
+// ── LOGO (embedded as base64 placeholder - small nun silhouette SVG) ──
+const NUN_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%239b1a1a'/%3E%3Ctext x='50' y='68' font-size='52' text-anchor='middle' fill='%23f0ede8'%3E🎵%3C/text%3E%3C/svg%3E`;
+
+// ── FILE LOAD ──────────────────────────────────────────────────
+const dz  = document.getElementById('drop-zone');
+const fi  = document.getElementById('file-input');
+
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const f = Array.from(e.dataTransfer.files).find(f => f.name.endsWith('.csv'));
+  if (f) readFile(f);
+});
+fi.addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); });
+
+function readFile(file) {
+  const r = new FileReader();
+  r.onload = ev => {
+    songs  = parseCSV(ev.target.result);
+    played = new Set();
+    if (!songs.length) { alert('Keine Songs gefunden.'); return; }
+    showScreen('screen-play');
+    setupNunImg();
+    nextSong();
+  };
+  r.readAsText(file, 'UTF-8');
+}
+
+// ── CSV PARSER ─────────────────────────────────────────────────
+function parseCSV(raw) {
+  if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1);
+  const lines = raw.split('\n').filter(l => l.trim());
+  if (!lines.length) return [];
+
+  const sep    = lines[0].includes(';') ? ';' : ',';
+  const header = splitLine(lines[0], sep).map(h => h.toLowerCase().trim());
+
+  const isExportify = header.some(h => h === 'track uri' || h === 'spotify uri');
+  const iUri    = header.findIndex(h => h === 'track uri' || h === 'spotify uri');
+  const iTitle  = header.findIndex(h => h === 'track name' || h === 'titel' || h === 'title');
+  const iArtist = header.findIndex(h => h.startsWith('artist name') || h === 'künstler' || h === 'artist');
+  const iYear   = header.findIndex(h => h === 'release date' || h === 'album release date' || h === 'jahr' || h === 'year');
+  const iUrl    = header.findIndex(h => h === 'url');
+
+  return lines.slice(1).map(l => {
+    const p      = splitLine(l, sep);
+    const uri    = (p[iUri]    || '').trim();
+    const title  = cleanTitle((p[iTitle]  || '').trim());
+    const artist = (p[iArtist] || '').trim().replace(/;/g, ' / ');
+    const year   = iYear >= 0 ? (p[iYear] || '').trim().substring(0, 4) : '';
+    const url    = iUrl >= 0 ? (p[iUrl] || '').trim()
+                 : uri.startsWith('spotify:track:')
+                   ? 'https://open.spotify.com/track/' + uri.split(':')[2]
+                   : uri.startsWith('http') ? uri : '';
+    if (!artist && !title) return null;
+    return { artist, title, year, url };
+  }).filter(Boolean);
+}
+
+function splitLine(line, sep) {
+  const res = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"' && !inQ) { inQ = true; continue; }
+    if (c === '"' && inQ)  { inQ = false; continue; }
+    if (c === sep && !inQ) { res.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  res.push(cur);
+  return res.map(s => s.trim());
+}
+
+function cleanTitle(t) {
+  return t.replace(/\s*[-–(\[]+\s*(\d{4}\s*)?(remaster(ed)?|live|radio edit|single version|album version|remix|edit|version|deluxe|bonus track|feat\..*|ft\..*)[^)\]]*[)\]]?/gi, '')
+           .replace(/\s*[-–]\s*$/, '').trim();
+}
+
+// ── NUN IMAGE ─────────────────────────────────────────────────
+function setupNunImg() {
+  // Use the embedded logo from Nunster branding
+  document.getElementById('nun-img').src    = NUN_SVG;
+  document.getElementById('stripe-img').src = NUN_SVG;
+}
+
+// ── SCREENS ───────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function goHome() {
+  if (songs.length && !confirm('Spiel beenden? Fortschritt geht verloren.')) return;
+  songs = []; played = new Set(); current = null;
+  resetCard();
+  showScreen('screen-load');
+}
+
+// ── GAME LOGIC ────────────────────────────────────────────────
+function nextSong() {
+  resetCard();
+
+  const remaining = songs.filter((_, i) => !played.has(i));
+  if (!remaining.length) {
+    document.getElementById('reveal-artist').textContent = 'Alle Songs gespielt!';
+    document.getElementById('reveal-year').textContent   = '🎉';
+    document.getElementById('reveal-title').textContent  = songs.length + ' Songs total';
+    document.getElementById('btn-deezer').disabled = true;
+    return;
+  }
+
+  // Pick random
+  const idx    = Math.floor(Math.random() * remaining.length);
+  const songIdx = songs.indexOf(remaining[idx]);
+  played.add(songIdx);
+  current = remaining[idx];
+
+  // Update counter
+  document.getElementById('play-counter').textContent =
+    `${played.size} / ${songs.length}`;
+
+  // Pre-fill reveal (hidden until flip)
+  document.getElementById('reveal-artist').textContent = current.artist || '—';
+  document.getElementById('reveal-year').textContent   = current.year   || '?';
+  document.getElementById('reveal-title').textContent  = current.title  || '—';
+
+  document.getElementById('btn-deezer').disabled = !current.url;
+  document.getElementById('playing-label').textContent = 'TIPPEN ZUM AUFDECKEN';
+}
+
+function flipCard() {
+  if (revealed) return;
+  revealed = true;
+  document.getElementById('card-3d').classList.add('flipped');
+  document.getElementById('waveform').style.display = 'none';
+  document.getElementById('playing-label').textContent = '';
+}
+
+function resetCard() {
+  revealed = false;
+  document.getElementById('card-3d').classList.remove('flipped');
+  document.getElementById('waveform').style.display = 'none';
+  document.getElementById('playing-label').textContent = 'TIPPEN ZUM AUFDECKEN';
+}
+
+function openDeezer() {
+  if (!current?.url) return;
+
+  // Show waveform animation
+  document.getElementById('waveform').style.display = 'flex';
+  document.getElementById('playing-label').textContent = 'LÄUFT IN DEEZER…';
+
+  // Try intent first (Android), fallback to web
+  const url = current.url;
+  if (url.includes('deezer.com/track/')) {
+    const id = url.split('/track/')[1].split('?')[0];
+    window.location.href = `intent://www.deezer.com/track/${id}#Intent;scheme=https;package=deezer.android.app;end`;
+    // Fallback after 1.5s
+    setTimeout(() => { window.open(url, '_blank'); }, 1500);
+  } else {
+    window.open(url, '_blank');
+  }
+}
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (document.getElementById('screen-play').classList.contains('hidden')) return;
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipCard(); }
+  if (e.key === 'ArrowRight' || e.key === 'n') nextSong();
+  if (e.key === 'd' || e.key === 'p') openDeezer();
+});
+</script>
+</body>
+</html>
